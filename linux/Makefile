@@ -1,4 +1,7 @@
-burn: burn.c
 
-install: burn
-	install -m 755 burn /usr/bin
+all: flash
+
+flash: flash.o
+
+install: flash
+	install -m 755 flash /usr/bin

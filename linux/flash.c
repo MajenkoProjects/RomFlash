@@ -186,55 +186,21 @@ int countLines(const char *filename) {
         
 }
 
-int main(int argc, char **argv) {
-
-    char *port ="/dev/ttyACM0";
-    if (argc == 3) {
-        port = argv[2];
-    }
-
-    int fd = openSerial(port, 460800);
-    if (fd == -1) {
-        printf("Unable to open serial port\n");
-        return -1;
-    }
-
-    sleep(1); // Wait for reset
-
-    int rv = command(fd, "!P1"); // Power on
-    if (rv >= 400) {
-        printf("Error %d turning on power\n", rv);
-        return -1;
-    }
-
-    rv = command(fd, "!I"); // Ident
-    if (rv >= 400) {
-        printf("Error %d getting identity\n", rv);
-        return -1;
-    }
-
-    rv = command(fd, "!E"); // Erase
-    if (rv >= 400) {
-        printf("Error %d erasing chip\n", rv);
-    } else {
-        printf("Chip erased\n");
-    }
-    
-    int lines = countLines(argv[1]);
+int burn(int fd, const char *fn) {
+    int lines = countLines(fn);
     if (lines < 0) {
         printf("Unable to open file\n");
         return -1;
     }
 
     int count = 0;
-    FILE *f = fopen(argv[1], "r");
+    FILE *f = fopen(fn, "r");
     char tmp[1024];
     while (!feof(f)) {
         fgets(tmp, 1024, f);
-        rv = command(fd, tmp);
+        int rv = command(fd, tmp);
         if (rv != 200) {
-            printf("Return code: %d\n", rv);
-            return -1;
+            return 0;
         }
         count++;
         printf("\rSending line %d of %d (%d%%)", count, lines, count * 100 / lines);
@@ -242,10 +208,73 @@ int main(int argc, char **argv) {
     }
     printf("\n");
     fclose(f);
-        
-    
-    command(fd, "!P0");
+	return 1;
+}
 
+// Usage: flash <chip> <command> [parameters] [<command> [parameters]...]
+
+
+int main(int argc, char **argv) {
+	if (argc < 3) {
+		printf("Usage: flash <chip> <command> [parameters] [command parameters...]\n");
+		return -1;
+	}
+
+    char *port ="/dev/ttyACM0";
+    int fd = openSerial(port, 460800);
+    if (fd == -1) {
+        printf("Unable to open serial port\n");
+        return -1;
+    }
+
+
+	char *chip = argv[1];
+	
+	int i = 2;
+
+	char temp[100];
+
+	snprintf(temp, 100, "C%s", chip);
+	command(fd, temp);
+
+	command(fd, "O0");
+
+
+	while (i < argc) {
+
+		char *cmd = argv[i++];
+
+		if (strcmp(cmd, "power") == 0) {
+			char *p = argv[i++];
+			if (strcmp(p, "on") == 0) {
+				int rv = command(fd, "P1");
+				printf("power on: %s\n", rv == 200 ? "ok" : "fail");
+			} else if (strcmp(p, "off") == 0) {
+				int rv = command(fd, "P0");
+				printf("power off: %s\n", rv == 200 ? "ok" : "fail");
+			} else {
+				printf("Usage: power <on/off>\n");
+			}
+		} else if (strcmp(cmd, "ident") == 0) {
+			int rv = command(fd, "I");
+			printf("ident: %s\n", rv == 200 ? "ok" : "fail");
+		} else if (strcmp(cmd, "erase") == 0) {
+			int rv = command(fd, "E");
+			printf("erase: %s\n", rv == 200 ? "ok" : "fail");
+		} else if (strcmp(cmd, "blankcheck") == 0) {
+			int rv = command(fd, "B");
+			printf("blankcheck: %s\n", rv == 200 ? "ok" : "fail");
+		} else if (strcmp(cmd, "burn") == 0) {
+			char *p = argv[i++];
+			if (burn(fd, p)) {
+				printf("burn: ok\n");
+			} else {
+				printf("burn: fail\n");
+			}
+		} else {
+			printf("Unknown command: %s\n", cmd);
+		}
+	}
 
     if (fd >= 0) {
         closeSerial(fd);

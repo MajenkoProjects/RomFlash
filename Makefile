@@ -1,9 +1,10 @@
 
 # This is what the board identifies as for rebooting
-PORT=/dev/ttyACM0
+PORT=/dev/ttyUSB0
 
 # What the board is
-BOARD=arduino:avr:mega
+BOARD=chipKIT:pic32:chipkit_WiFire:Version=ab
+#BOARD=arduino:avr:mega
 
 
 # Targets:
