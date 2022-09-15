@@ -186,6 +186,21 @@ int countLines(const char *filename) {
         
 }
 
+int save(int fd, const char *fn) {
+	FILE *f = fopen(fn, "w");
+
+    write(fd, "R\n", 2);
+    char ret[100];
+    readSerial(fd, ret);
+    while (ret[0] != '$') {
+        fprintf(f, "%s\n", ret);
+        readSerial(fd, ret);
+    }
+	fclose(f);
+    int rv = strtol(ret + 1, NULL, 10);
+	return rv == 200;
+}
+
 int burn(int fd, const char *fn) {
     int lines = countLines(fn);
     if (lines < 0) {
@@ -270,6 +285,13 @@ int main(int argc, char **argv) {
 				printf("burn: ok\n");
 			} else {
 				printf("burn: fail\n");
+			}
+		} else if (strcmp(cmd, "read") == 0) {
+			char *p = argv[i++];
+			if (save(fd, p)) {
+				printf("read: ok\n");
+			} else {
+				printf("read: fail\n");
 			}
 		} else {
 			printf("Unknown command: %s\n", cmd);
